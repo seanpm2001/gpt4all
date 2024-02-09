@@ -413,7 +413,9 @@ std::vector<LLModel::GPUDevice> LLamaModel::availableGPUDevices(size_t memoryReq
     size_t count = 0;
     auto * vkDevices = ggml_vk_available_devices(memoryRequired, &count);
 
-    if (vkDevices) {
+    if (!vkDevices) {
+        std::cerr << __func__ << ": ggml_vk_available_devices returned nullptr\n";
+    } else {
         std::vector<LLModel::GPUDevice> devices;
         devices.reserve(count);
 
@@ -432,6 +434,8 @@ std::vector<LLModel::GPUDevice> LLamaModel::availableGPUDevices(size_t memoryReq
         free(vkDevices);
         return devices;
     }
+#else
+    std::cerr << __func__ << ": build without Kompute\n";
 #endif
 
     return {};
