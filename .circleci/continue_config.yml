@@ -124,9 +124,7 @@ jobs:
             mkdir build
             cd build
             mkdir upload
-            ~/Qt/Tools/CMake/bin/cmake -DGPT4ALL_OFFLINE_INSTALLER=ON -DCMAKE_BUILD_TYPE=Release -S ../gpt4all-chat -B .
-            ~/Qt/Tools/CMake/bin/cmake --build . --target all
-            ~/Qt/Tools/CMake/bin/cmake --build . --target install
+            ~/Qt/Tools/CMake/bin/cmake -DGPT4ALL_OFFLINE_INSTALLER=ON -DCMAKE_BUILD_TYPE=Debug -S ../gpt4all-chat -B .
             ~/Qt/Tools/CMake/bin/cmake --build . --target package
             cp gpt4all-installer-* upload
       - store_artifacts:
