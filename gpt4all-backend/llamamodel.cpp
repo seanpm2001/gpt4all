@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <sstream>
@@ -116,21 +117,30 @@ const char *get_arch_name(gguf_context *ctx_gguf) {
     return gguf_get_val_str(ctx_gguf, kid);
 }
 
-static gguf_context *load_gguf(const char *fname) {
+namespace {
+
+struct gguf_context_deleter {
+    void operator()(gguf_context *ctx) { gguf_free(ctx); }
+};
+
+} // namespace
+
+using unique_gguf_context = std::unique_ptr<gguf_context, gguf_context_deleter>;
+
+static unique_gguf_context load_gguf(const char *fname) {
     struct gguf_init_params params = {
         /*.no_alloc = */ true,
         /*.ctx      = */ nullptr,
     };
-    gguf_context *ctx = gguf_init_from_file(fname, params);
+    unique_gguf_context ctx(gguf_init_from_file(fname, params));
     if (!ctx) {
         std::cerr << __func__ << ": gguf_init_from_file failed\n";
         return nullptr;
     }
 
-    int gguf_ver = gguf_get_version(ctx);
+    int gguf_ver = gguf_get_version(ctx.get());
     if (gguf_ver > GGUF_VER_MAX) {
         std::cerr << __func__ << ": unsupported gguf version: " << gguf_ver << "\n";
-        gguf_free(ctx);
         return nullptr;
     }
 
@@ -138,32 +148,25 @@ static gguf_context *load_gguf(const char *fname) {
 }
 
 static int32_t get_arch_key_u32(std::string const &modelPath, std::string const &archKey) {
-    int32_t value = -1;
-    std::string arch;
-
-    auto * ctx = load_gguf(modelPath.c_str());
+    auto ctxMem = load_gguf(modelPath.c_str());
+    auto *ctx = ctxMem.get();
     if (!ctx)
-        goto cleanup;
+        return -1;
 
+    std::string arch;
     try {
         arch = get_arch_name(ctx);
     } catch (const std::runtime_error &) {
-        goto cleanup; // cannot read key
+        return -1; // cannot read key
     }
 
-    {
-        auto key = arch + "." + archKey;
-        int keyidx = gguf_find_key(ctx, key.c_str());
-        if (keyidx != -1) {
-            value = gguf_get_val_u32(ctx, keyidx);
-        } else {
-            std::cerr << __func__ << ": " << key << "not found in " << modelPath << "\n";
-        }
-    }
+    auto key = arch + "." + archKey;
+    int keyidx = gguf_find_key(ctx, key.c_str());
+    if (keyidx != -1)
+        return gguf_get_val_u32(ctx, keyidx);
 
-cleanup:
-    gguf_free(ctx);
-    return value;
+    std::cerr << __func__ << ": " << key << "not found in " << modelPath << "\n";
+    return -1;
 }
 
 struct LLamaPrivate {
@@ -218,7 +221,8 @@ size_t LLamaModel::requiredMem(const std::string &modelPath, int n_ctx, int ngl)
 }
 
 bool LLamaModel::isModelBlacklisted(const std::string &modelPath) const {
-    auto * ctx = load_gguf(modelPath.c_str());
+    auto ctxMem = load_gguf(modelPath.c_str());
+    auto *ctx = ctxMem.get();
     if (!ctx) {
         std::cerr << __func__ << ": failed to load " << modelPath << "\n";
         return false;
@@ -232,7 +236,6 @@ bool LLamaModel::isModelBlacklisted(const std::string &modelPath) const {
         return keyidx;
     };
 
-    bool res = false;
     try {
         std::string name(gguf_get_val_str(ctx, get_key("general.name")));
         int token_idx = get_key("tokenizer.ggml.tokens");
@@ -243,37 +246,30 @@ bool LLamaModel::isModelBlacklisted(const std::string &modelPath) const {
             && n_vocab == 32002
             && gguf_get_arr_str(ctx, token_idx, 32000) == "<dummy32000>"s // should be <|im_end|>
         ) {
-            res = true;
+            return true;
         }
     } catch (const std::logic_error &e) {
         std::cerr << __func__ << ": " << e.what() << "\n";
     }
 
-    gguf_free(ctx);
-    return res;
+    return false;
 }
 
 bool LLamaModel::isEmbeddingModel(const std::string &modelPath) const {
-    bool result = false;
-    std::string arch;
-
-    auto *ctx_gguf = load_gguf(modelPath.c_str());
-    if (!ctx_gguf) {
+    auto ctxMem = load_gguf(modelPath.c_str());
+    if (!ctxMem) {
         std::cerr << __func__ << ": failed to load GGUF from " <<  modelPath << "\n";
-        goto cleanup;
+        return false;
     }
 
+    std::string arch;
     try {
-        arch = get_arch_name(ctx_gguf);
+        arch = get_arch_name(ctxMem.get());
     } catch (const std::runtime_error &) {
-        goto cleanup; // cannot read key
+        return false; // cannot read key
     }
 
-    result = is_embedding_arch(arch);
-
-cleanup:
-    gguf_free(ctx_gguf);
-    return result;
+    return is_embedding_arch(arch);
 }
 
 bool LLamaModel::loadModel(const std::string &modelPath, int n_ctx, int ngl)
@@ -983,28 +979,22 @@ DLL_EXPORT const char *get_build_variant() {
 }
 
 DLL_EXPORT char *get_file_arch(const char *fname) {
-    char *arch = nullptr;
-    std::string archStr;
-
-    auto *ctx = load_gguf(fname);
+    auto ctxMem = load_gguf(fname);
+    auto *ctx = ctxMem.get();
     if (!ctx)
-        goto cleanup;
+        return nullptr;
 
+    std::string archStr;
     try {
         archStr = get_arch_name(ctx);
     } catch (const std::runtime_error &) {
-        goto cleanup; // cannot read key
+        return nullptr; // cannot read key
     }
 
-    if (is_embedding_arch(archStr) && gguf_find_key(ctx, (archStr + ".pooling_type").c_str()) < 0) {
-        // old bert.cpp embedding model
-    } else {
-        arch = strdup(archStr.c_str());
-    }
+    if (is_embedding_arch(archStr) && gguf_find_key(ctx, (archStr + ".pooling_type").c_str()) < 0)
+        return nullptr; // old bert.cpp embedding model
 
-cleanup:
-    gguf_free(ctx);
-    return arch;
+    return strdup(archStr.c_str());
 }
 
 DLL_EXPORT bool is_arch_supported(const char *arch) {
