@@ -1,5 +1,8 @@
 #include "llmodel.h"
 
+#include "dlhandle.h"
+#include "sysinfo.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -12,9 +15,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "dlhandle.h"
-#include "sysinfo.h"
 
 #ifdef _WIN32
 #   define WIN32_LEAN_AND_MEAN
