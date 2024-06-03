@@ -99,8 +99,8 @@ jobs:
       - run:
           name: "Setup Keychain"
           command: |
-            echo \<<< $MAC_SIGNING_CERT > certs.pem
-            openssl pkcs12 -export -out cert.p12 -in certs.pem -passin $MAC_SIGNING_CERT_PWD
+            echo \<<< "$MAC_SIGNING_CERT" > certs.pem
+            openssl pkcs12 -export -out cert.p12 -in certs.pem -passin "$MAC_SIGNING_CERT_PWD"
             security create-keychain  sign.keychain \<<< "$MAC_KEYCHAIN_KEY"
             security default-keychain -s sign.keychain
             security unlock-keychain sign.keychain \<<< "$MAC_KEYCHAIN_KEY"
