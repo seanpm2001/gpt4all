@@ -896,7 +896,7 @@ jobs:
 
   build-nodejs-linux: 
     machine: 
-      - image: ubuntu-2204:2023.04.2
+      image: ubuntu-2204:2023.04.2
     steps:
       - checkout
       - attach_workspace:
