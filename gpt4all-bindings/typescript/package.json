@@ -28,7 +28,7 @@
   "dependencies": {
     "md5-file": "^5.0.0",
     "node-addon-api": "^8.0.0",
-    "node-gyp-build": "~4.8.0"
+    "node-gyp-build": "4.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

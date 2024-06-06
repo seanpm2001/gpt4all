@@ -895,7 +895,7 @@ jobs:
           path: gpt4all-bindings/csharp/Gpt4All/bin/Release
 
   build-nodejs-linux: 
-    docker: 
+    machine: 
       - image: ubuntu-2204:2023.04.2
     steps:
       - checkout
