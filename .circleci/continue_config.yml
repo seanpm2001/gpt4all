@@ -101,10 +101,10 @@ jobs:
           command: |
             cat \<<< "$MAC_SIGNING_CERT" > certs.pem
             openssl pkcs12 -export -out cert.p12 -in certs.pem -inkey certs.pem -passin pass:"$MAC_SIGNING_CERT_PWD" -passout pass:"$MAC_SIGNING_CERT_PWD"
-            security create-keychain  sign.keychain \<<< "$MAC_KEYCHAIN_KEY"
+            security create-keychain -p "$MAC_KEYCHAIN_KEY" sign.keychain
             security default-keychain -s sign.keychain
-            security unlock-keychain sign.keychain \<<< "$MAC_KEYCHAIN_KEY"
-            security import cert.p12 -k sign.keychain -T /usr/bin/codesign \<<< "$MAC_SIGNING_CERT_PWD"
+            security unlock-keychain -p "$MAC_KEYCHAIN_KEY" sign.keychain
+            security import cert.p12 -k sign.keychain -P "$MAC_SIGNING_CERT_PWD" -T /usr/bin/codesign
             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MAC_KEYCHAIN_KEY" sign.keychain
             rm cert.p12
       - run:
