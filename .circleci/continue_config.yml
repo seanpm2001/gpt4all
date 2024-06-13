@@ -208,6 +208,31 @@ jobs:
             copy gpt4all-installer-win64.exe upload
       - store_artifacts:
           path: build/upload
+            # add workspace so signing jobs can connect & obtain dmg
+      - persist_to_workspace:
+          root: build
+          # specify path to only include components we want to persist
+          # accross builds
+          paths:
+            - upload
+  sign-offline-chat-installer-windows:
+    machine:
+      image: 'windows-server-2019-vs2019:2022.08.1'
+      resource_class: windows.large
+      shell: powershell.exe -ExecutionPolicy Bypass
+    steps:
+      - checkout
+      - attach_workspace:
+          at: build
+      - run:
+          name: "Setup Azure SignTool"
+          command: |
+            $Env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
+            dotnet tool install --global AzureSignTool --version 2.0.17
+      - run:
+          name: "Sign Windows Installer With AST"
+          command: |
+            AzureSignTool.exe sign -du "MY-URL" -kvu https://MY-VAULT-NAME.vault.azure.net -kvi CLIENT-ID-BIG-GUID -kvs CLIENT-PASSWORD -kvc MY-CERTIFICATE-NAME -tr http://timestamp.digicert.com -v $(System.DefaultWorkingDirectory)/build/upload/gpt4all-installer-win64.exe
   build-gpt4all-chat-linux:
     machine:
       image: ubuntu-2204:2023.04.2
@@ -1075,6 +1100,10 @@ workflows:
       - build-offline-chat-installer-windows:
           requires:
             - hold
+      - sign-offline-chat-installer-windows:
+          requires:
+            - hold
+            - build-offline-chat-installer-windows
       - build-offline-chat-installer-linux:
           requires:
             - hold
