@@ -232,7 +232,7 @@ jobs:
       - run:
           name: "Sign Windows Installer With AST"
           command: |
-            AzureSignTool.exe sign -du "MY-URL" -kvu https://MY-VAULT-NAME.vault.azure.net -kvi $Env:AZSignGUID -kvs $Env:AZSignPWD -kvc $Env:AZSignCertName -tr http://timestamp.digicert.com -v $(System.DefaultWorkingDirectory)/build/upload/gpt4all-installer-win64.exe
+            AzureSignTool.exe sign -du "https://gpt4all.io/index.html" -kvu https://gpt4all.vault.azure.net -kvi $Env:AZSignGUID -kvs $Env:AZSignPWD -kvc $Env:AZSignCertName -tr http://timestamp.digicert.com -v $(System.DefaultWorkingDirectory)/build/upload/gpt4all-installer-win64.exe
 
   build-gpt4all-chat-linux:
     machine:
