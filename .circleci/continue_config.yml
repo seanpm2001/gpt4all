@@ -99,7 +99,9 @@ jobs:
       - run:
           name: "Setup Keychain"
           command: |
-            cat \<<< "$MAC_SIGNING_CERT" > certs.pem
+            cat \<<< "$MAC_SIGNING_CERT" > certs1.pem
+            file certs1.pem
+            iconv -c -f UTF8 -t ASCII certs1.pem > certs.pem
             openssl pkcs12 -export -out cert.p12 -in certs.pem -inkey certs.pem -passin pass:"$MAC_SIGNING_CERT_PWD" -passout pass:"$MAC_SIGNING_CERT_PWD"
             security create-keychain -p "$MAC_KEYCHAIN_KEY" sign.keychain
             security default-keychain -s sign.keychain
